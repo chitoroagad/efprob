@@ -61,7 +61,7 @@ cut = uniform * discard
 
 # (comb) disintegration functions
 def disint(p):
-    print(f"PSHAPE: {p.shape}")
+    # print(f"PSHAPE: {p.shape}")
     in_dim = p.shape[0] // 2
     pA = T(eye(in_dim), discard) * p
     pAinv = pA.copy()
@@ -74,14 +74,19 @@ def disint(p):
 def comb_disint(p):
     pAB, pC_AB = disint(p)
     pA, g = disint(pAB)
-    print("\nPA:")
-    pprint(pA)
-    print("\ncopy PA:")
-    pprint(copy * pA)
-    print("\nT(copy PA, i):")
-    pprint(T(copy * pA, i))
-    print("\nT(copy*PA, i) * T(i, pC_AB):")
+
+    # print("\nPA:")
+    # pprint(pA)
+    # print("\ncopy PA:")
+    # pprint(copy * pA)
+    # print("\nT(copy PA, i):")
+    # pprint(T(copy * pA, i))
+    # print(f"P(C_AB).shape: {pC_AB.shape}")
+    # print(f"T(i, P(C_AB)).shape: {T(i, pC_AB).shape}")
+    #
+    # print("\nT(copy*PA, i) * T(i, pC_AB):")
     f = T(i, pC_AB) * T(copy * pA, i)
+
     pprint(f)
     return (f, g)
 
