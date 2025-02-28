@@ -7,10 +7,10 @@ from efprob import *
 
 
 
-def get_conditional_probability(state, conclusion_mask, condition_mask):
+def get_conditional_probability(state, condition_mask, conclusion_mask):
     sum_mask = mask_sum(conclusion_mask, condition_mask)
     marginal = state.MM(*sum_mask)
-    sub_cond_mask = mask_restrict(sum_mask, condition_mask)
+    sub_cond_mask = mask_restrict(sum_mask, conclusion_mask)
     return marginal.DM(*sub_cond_mask)
 
 sp_S = SpaceAtom('S', [0, 1])
@@ -39,9 +39,9 @@ PT = PSTC.MM(0, 1, 0)
 PC = PSTC.MM(0, 0, 1)
 pST = PSTC.MM(1, 1, 0)
 
-i = idn(PT.sp)
-i2 = idn(PS.sp)
-i3 = idn(PC.sp)
+i_t = idn(PT.sp)
+i_s = idn(PS.sp)
+i_c = idn(PC.sp)
 copy = copy2(PS.sp)
 swap = swap(PS.sp, PC.sp)
 cap = cap(PS.sp)
@@ -51,21 +51,21 @@ uniform = uniform_state(PS.sp)
 cut = uniform * discard
 
 PS_copy = copy * PS
-y = PS_copy @ i
-x = i2 @ PC_ST
+y = PS_copy @ i_t
+x = i_s @ PC_ST
 
-f =  (i2 @ PC_ST) * (PS_copy @ i)
+f =  (i_s @ PC_ST) * (PS_copy @ i_t)
 g = get_conditional_probability(PSTC, [1, 0, 0], [0, 1, 0])
 print(g)
-print(f)
+# print(f)
 def comb_compose(f, g):
-    m = (i2 @ i @ (swap * f)) * (i @ copy) * (i2 @ g) * copy
+    m = (i_s @ i_t @ (swap * f)) * (i_s @ copy) * (i_s @ g) * copy
     print(copy)
     print(swap * f)
     print(m)
-    return (i2 @ i @ i3 @ cap) * (m @ i2) * cup
+    return (i_s @ i_t @ i_c @ cap) * (m @ i_s) * cup
 
-omega_cut = comb_compose((cut @ i2) * f, g)
+omega_cut = comb_compose((cut @ i_s) * f, g)
 result = get_conditional_probability(omega_cut, [1, 0, 0], [0, 0, 1])
 
 
@@ -76,5 +76,5 @@ result = get_conditional_probability(omega_cut, [1, 0, 0], [0, 0, 1])
 # print(PS)
 # print(PSTC.array)
 # print(copy.array)
-print(omega_cut)
+# print(omega_cut)
 print(result.array)
