@@ -1,4 +1,6 @@
-from typing import List, Dict, Tuple
+import numpy as np
+
+from typing import List, Tuple
 from efprob import (
     Space,
     State,
@@ -154,7 +156,66 @@ class BayesianSurgeryNet:
         f = (cut @ idn_cut) * f
         m = (idn_cut @ idn_observ @ (swap_chan * f)) * (idn_cut @ copy2(cut_space)) * (idn_cut @ g) * copy2(cut_space)
         return (idn_cut @ idn_observ @ idn_irrelevant @ cap(cut_space)) * (m @ idn_cut) * cup(cut_space)
+
+    def _reorder_states(self, new_order: List[str]) -> State:
+        """
+        Reorder the state variables to match the new variable order.
         
+        :param state: The state to reorder
+        :param new_order: The new order of variables
+        
+        :return: The reordered state
+        """
+        assert len(new_order) == len(self.vars), "New order must have the same number of variables"
+
+        # Validate the variables
+        self._validate_vars(*new_order)
+        
+        # If the orders are the same, return the original state
+        if self.vars == new_order:
+            return self.state
+            
+        # Create a working copy of current ordering
+        current_order = list(self.vars)
+        
+        # Create a working copy of the state
+        result_state = self.state
+        
+        # TODO: bubble sort for now, but surely there's a better way to do this
+        for target_idx, var in enumerate(new_order):
+            current_idx = current_order.index(var)
+            
+            # Swap the variable into place
+            while current_idx > target_idx:
+                # Create swap channel to exchange adjacent variables
+                idx = current_idx - 1
+                swap_channel = swap(
+                    Space(self.sp[idx]), 
+                    Space(self.sp[current_idx])
+                )
+
+                # Create identity channels for all other spaces
+                prefix_spaces = Space(*[self.sp[i] for i in range(0, idx)])
+                suffix_spaces = Space(*[self.sp[i] for i in range(current_idx+1, len(self.vars))])
+                
+                # Pad with identity channels
+                if current_idx > 0:
+                    prefix_idn = idn(prefix_spaces)
+                    swap_channel = prefix_idn @ swap_channel
+                
+                if current_idx < len(self.vars) - 1:
+                    suffix_idn = idn(suffix_spaces)
+                    swap_channel = swap_channel @ suffix_idn
+                    
+                # Apply the swap to the state
+                result_state = swap_channel * result_state
+                
+                # Update our tracking of the current order
+                current_order[idx], current_order[current_idx] = current_order[current_idx], current_order[idx]
+                current_idx = idx
+        
+        return result_state
+
     def _validate_vars(self, *vars: List[str]):
         for var in vars:
             if var not in self._var_set:

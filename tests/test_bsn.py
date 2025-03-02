@@ -1,5 +1,5 @@
 import numpy as np
-from efprob import Space, Channel
+from efprob import Space, Channel, SpaceAtom, State
 
 from src.BayesianSurgeryNet import BayesianSurgeryNet
 
@@ -89,3 +89,48 @@ def test_cut_and_compute():
 
     # Then
     assert np.allclose(result.array, expected_results)
+
+def test_reorder():
+    # Given
+    permutation = ['S', 'C', 'T']
+    new_omega = [
+        0.5,   # S=0, T=0, C=0
+        0.01,  # S=0, T=1, C=0
+        0.1,   # S=0, T=0, C=1
+        0.02,  # S=0, T=1, C=1
+        0.1,   # S=1, T=0, C=0
+        0.02,  # S=1, T=1, C=0
+        0.05,  # S=1, T=0, C=1
+        0.2    # S=1, T=1, C=1
+    ]
+
+    expected_state = State(new_omega, Space(*[SpaceAtom(var, [0, 1]) for var in permutation]))
+
+    # Then
+    state = bsn._reorder_states(permutation)
+
+    # Expect
+    assert state == expected_state
+
+def test_reorder2():
+        # Given
+    permutation = ['T', 'S', 'C']
+    new_omega = [
+        0.5,   # S=0, T=0, C=0
+        0.1,   # S=0, T=0, C=1
+        0.1,   # S=1, T=0, C=0
+        0.05,  # S=1, T=0, C=1
+        0.01,  # S=0, T=1, C=0
+        0.02,  # S=0, T=1, C=1
+        0.02,  # S=1, T=1, C=0
+        0.2    # S=1, T=1, C=1
+    ]
+
+    expected_state = State(new_omega, Space(*[SpaceAtom(var, [0, 1]) for var in permutation]))
+
+    # Then
+    state = bsn._reorder_states(permutation)
+
+    # Expect
+    assert state == expected_state
+
