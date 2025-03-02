@@ -40,7 +40,6 @@ class BayesianSurgeryNet:
         self.omega = omega
         self.vars = vars
 
-        self._var_set = set(vars)
         self.sp = Space(*[SpaceAtom(var, [0, 1]) for var in vars])
         self.state = State(omega, self.sp)
 
@@ -62,31 +61,35 @@ class BayesianSurgeryNet:
         # Ensure the variables are in the domain
         self._validate_vars(cut_var, observ_var)
 
+        # According to our comb_disint invariant, we first have to reorder the dom
+        new_order = [cut_var] + [var for var in self.vars if var not in [cut_var, observ_var]] + [observ_var]
+        state = self._reorder_states(new_order)
+
         # 1. Find indices for our variables
-        cut_idx = self.vars.index(cut_var)
-        observ_idx = self.vars.index(observ_var)
+        cut_idx = new_order.index(cut_var)
+        observ_idx = new_order.index(observ_var)
 
         # 2. Create masks for accessing different parts of the state
-        cut_mask = [0 if var != cut_var else 1 for var in self.vars]
-        observ_mask = [0 if var != observ_var else 1 for var in self.vars]
+        cut_mask = [0 if var != cut_var else 1 for var in new_order]
+        observ_mask = [0 if var != observ_var else 1 for var in new_order]
 
         # 3. Get the spaces for the variables
         cut_space = Space(self.sp[cut_idx])
         observ_space = Space(self.sp[observ_idx])
-        irrelevant_space = Space(*[SpaceAtom(var, [0, 1]) for var in self.vars if var not in [cut_var, observ_var]])
+        irrelevant_space = Space(*[SpaceAtom(var, [0, 1]) for var in new_order if var not in [cut_var, observ_var]])
 
         # 4. Comb disintegration
-        f, g = self._comb_disint(cut_space, cut_mask, observ_space, observ_mask)
+        f, g = self._comb_disint(state, cut_space, cut_mask, observ_space, observ_mask)
 
         # 5. Comb compose
         composed_state = self._comb_compose(f, g, cut_space, irrelevant_space, observ_space)
 
         # 6. Get the conditional probability
-        print(f"{composed_state.array=}")
         return self._get_conditional_probability(composed_state, cut_mask, observ_mask)
 
     def _comb_disint(
             self,
+            state: State,
             cut_space: Space,
             cut_mask: List[int],
             observ_space: Space,
@@ -94,6 +97,8 @@ class BayesianSurgeryNet:
         ) -> Tuple[Channel, Channel]:
         """
         Perform comb disintegration on the state, given the cut and observation
+
+        INVARIANT: The cut variable must be the first variable in the state
 
         :param cut_space: The space for the cut variable
         :param cut_mask: The mask for the cut variable
@@ -109,7 +114,7 @@ class BayesianSurgeryNet:
             1 if cut_mask[i] == 0 and observ_mask[i] == 0 else 0
             for i in range(len(cut_mask))
         ]
-        g = self._get_conditional_probability(self.state, cut_mask, irrelevant_mask)
+        g = self._get_conditional_probability(state, cut_mask, irrelevant_mask)
 
         # f is the disintegration of the cut variable
         #   We need the cut marginal first and create a copy for it
@@ -117,12 +122,12 @@ class BayesianSurgeryNet:
         i_observ = idn(observ_space)
         copy_chan = copy2(cut_space)
 
-        cut_marginal = self.state.MM(*cut_mask)
+        cut_marginal = state.MM(*cut_mask)
         cut_copy = copy_chan * cut_marginal
 
         # create a mask that is the not(observ mask), mask flipped
         observ_complement_mask = [1 - mask for mask in observ_mask]
-        observ_given_rest = self._get_conditional_probability(self.state, observ_complement_mask, observ_mask)
+        observ_given_rest = self._get_conditional_probability(state, observ_complement_mask, observ_mask)
 
         f = (i_cut @ observ_given_rest) * (cut_copy @ i_observ)
 
@@ -181,7 +186,7 @@ class BayesianSurgeryNet:
         # Create a working copy of the state
         result_state = self.state
         
-        # TODO: bubble sort for now, but surely there's a better way to do this
+        # TODO: bubble sort for now, but just find the index and pad with identities in between, padding with identies will probably be annoying tho
         for target_idx, var in enumerate(new_order):
             current_idx = current_order.index(var)
             
@@ -218,7 +223,7 @@ class BayesianSurgeryNet:
 
     def _validate_vars(self, *vars: List[str]):
         for var in vars:
-            if var not in self._var_set:
+            if var not in self.vars:
                 raise ValueError(f"Variable {var} not found in the domain")
 
     def _get_conditional_probability(self, state, condition_mask, conclusion_mask):
@@ -227,20 +232,3 @@ class BayesianSurgeryNet:
         marginal = state.MM(*sum_mask)
         sub_cond_mask = mask_restrict(sum_mask, conclusion_mask)
         return marginal.DM(*sub_cond_mask)
-
-
-
-if __name__ == "__main__":
-    omega1 = [
-        0.5,   # S=0, T=0, C=0
-        0.1,   # S=0, T=0, C=1
-        0.01,  # S=0, T=1, C=0
-        0.02,  # S=0, T=1, C=1
-        0.1,   # S=1, T=0, C=0
-        0.05,  # S=1, T=0, C=1
-        0.02,  # S=1, T=1, C=0
-        0.2    # S=1, T=1, C=1
-    ]
-    bn = BayesianSurgeryNet(omega1, ['S', 'T', 'C'])
-    result = bn.cut_and_compute('S', 'C')
-    print(result.array)
