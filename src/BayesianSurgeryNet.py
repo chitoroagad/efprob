@@ -43,6 +43,9 @@ class BayesianSurgeryNet:
         self.sp = Space(*[SpaceAtom(var, [0, 1]) for var in vars])
         self.state = State(omega, self.sp)
 
+    def __repr__(self):
+        return f"BayesianSurgeryNet({self.omega=}, {self.vars=})"
+
     def cut_and_compute(self, cut_var: str, observ_var: str) -> State:
         """
         Perform a causal intervention by cutting the influence to cut_var,
