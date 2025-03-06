@@ -62,6 +62,7 @@ class BayesianSurgeryNet:
         self._validate_vars(cut_var, observ_var)
 
         # According to our comb_disint invariant, we first have to reorder the dom
+        # The ordering is [*cut_vars, *other_vars, *observ_vars]
         new_order = [cut_var] + [var for var in self.vars if var not in [cut_var, observ_var]] + [observ_var]
         state = self._reorder_states(new_order)
 
@@ -100,10 +101,11 @@ class BayesianSurgeryNet:
 
         INVARIANT: The cut variable must be the first variable in the state
 
-        :param cut_space: The space for the cut variable
-        :param cut_mask: The mask for the cut variable
-        :param observ_space: The space for the observation variable
-        :param observ_mask: The mask for the observation variable
+        Parameters:
+        cut_space       (Space):        The space for the cut variable
+        cut_mask        (List[0, 1]):   The mask for the cut variable
+        observ_space    (Space):        The space for the observation variable
+        observ_mask     (List[0, 1]):   The mask for the observation variable
 
         :return: The disintegrated states f and g
         """
@@ -144,10 +146,12 @@ class BayesianSurgeryNet:
         """
         Use the comb disintegrated morphisms to compose the 'cut' state
 
-        :param f: The disintegrated state for the cut variable
-        :param g: The conditional probability for the observation variable given the cut variable
+        Parameters:
+        f   (Channel): The disintegrated state for the cut variable
+        g   (Channel): The conditional probability for the observation variable given the cut variable
 
-        :return: The composed state
+        Returns:
+        The composed state
         """
         idn_cut = idn(cut_space)
         idn_irrelevant = idn(irrelevant_space)
@@ -166,10 +170,11 @@ class BayesianSurgeryNet:
         """
         Reorder the state variables to match the new variable order.
         
-        :param state: The state to reorder
-        :param new_order: The new order of variables
+        Parameters:
+        new_order   (List[str]): The new order of variables
         
-        :return: The reordered state
+        Returns:
+        A new State with the variables in the new order
         """
         assert len(new_order) == len(self.vars), "New order must have the same number of variables"
 
@@ -222,12 +227,28 @@ class BayesianSurgeryNet:
         return result_state
 
     def _validate_vars(self, *vars: List[str]):
+        """
+        Iterates through the variables and checks if they are in the domain
+        
+        Throws an `ValueError` if the var is not in the domain
+        """
         for var in vars:
             if var not in self.vars:
                 raise ValueError(f"Variable {var} not found in the domain")
 
-    def _get_conditional_probability(self, state, condition_mask, conclusion_mask):
-        """Helper method to get conditional probability from a state"""
+    def _get_conditional_probability(self, state, condition_mask, conclusion_mask) -> State:
+        """
+        Helper function to get the conditional probability of a state
+        Applies a mask to the state to get the conditional probability of the conclusion given the condition
+
+        Parameters:
+        state           (State):    The state to get the conditional probability from
+        condition_mask  (List[int]): The mask for the condition
+        conclusion_mask (List[int]): The mask for the conclusion
+
+        Returns:
+        State:  The conditional probability
+        """
         sum_mask = mask_sum(conclusion_mask, condition_mask)
         marginal = state.MM(*sum_mask)
         sub_cond_mask = mask_restrict(sum_mask, conclusion_mask)
