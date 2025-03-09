@@ -1,7 +1,12 @@
 import numpy as np
 from efprob import Space, Channel, SpaceAtom, State
 
-from src.BayesianSurgeryNet import BayesianSurgeryNet
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+
+from BayesianSurgeryNet import BayesianSurgeryNet
 
 # We use the data from the smoking example
 omega1 = [
