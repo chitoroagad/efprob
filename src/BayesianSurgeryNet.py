@@ -388,25 +388,19 @@ class BayesianSurgeryNet:
 from efprob import SpaceAtom
 from typing import List
 
-# 1. We'll define five variables (A,B,C,D,E), each binary [0,1]
+# We'll define five variables (A,B,C,D,E), each binary [0,1]
 vars5 = ["A","B","C","D","E"]
 spaces5 = [SpaceAtom(v, [0,1]) for v in vars5]
 
-# 2. We need a distribution (omega5) of length 32 that sums to 1.
-#    For simplicity, let's assign each outcome probability = 1/32 = 0.03125
-#    so that the entire distribution sums to 1.
 omega5 = [0.03125]*32  # 32 elements, each 0.03125 => sums to 1.0
 
-# 3. Create a BayesianSurgeryNet instance for these 5 variables.
 bsn5 = BayesianSurgeryNet(omega5, vars5, spaces5)
 
-# 4. We'll demonstrate merging the variables (A,E) into a new dimension "AE".
-#    Then we will do a cut on "AE", using "B" as the trans variable, and "C" as the observed variable.
-#    "D" will simply remain in the leftover space but won't be used as cut/trans/observ in this call.
+
 result_state = bsn5.cut_multiple_vars(
     merge_vars=["A","D","E"],  # merge these two binary variables
-    new_name="ADE",         # call the merged dimension "AE"
-    cut_var="ADE",          # we want to cut on the newly merged "AE"
+    new_name="ADE",         # call the merged dimension "ADE"
+    cut_var="ADE",          # we want to cut on the newly merged "ADE"
     trans_var="B",         # "B" acts as the bridging variable
     observ_var="C"         # "C" is the observation
 )
