@@ -297,8 +297,8 @@ class BayesianSurgeryNet:
 
         # 2 Build a new dimension (SpaceAtom) of size 2^k
         import itertools
-        combos = list(itertools.product([0,1], repeat=k))  # 2^k 个 (0/1,...)
-        new_atom = SpaceAtom(new_name, combos)  # 大小=2^k
+        combos = list(itertools.product([0,1], repeat=k)) 
+        new_atom = SpaceAtom(new_name, combos)  
 
         # 3 Find leftover variables and atoms
         leftover_vars = []
@@ -386,22 +386,70 @@ class BayesianSurgeryNet:
     
 
 
-# Suppose we have A,B,C,D, each binary:
-vars2 = ['A','B','C','D']
-space2 = [SpaceAtom(v, [0,1]) for v in vars2]
-omega2 = [
-    0.30,0.05,0.05,0.10, 0.10,0.05,0.03,0.12,
-    0.05,0.02,0.08,0.12, 0.03,0.03,0.05,0.15
-]
-bsn2 = BayesianSurgeryNet(omega2, vars2, space2)
+# Suppose we have the class BayesianSurgeryNet with the cut_multiple_vars method
+# already defined in your environment. For reference, you can use the version:
+#
+# class BayesianSurgeryNet:
+#     ... (methods) ...
+#     def cut_multiple_vars(
+#         self,
+#         merge_vars: List[str], 
+#         new_name: str,
+#         cut_var: str,
+#         trans_var: str,
+#         observ_var: str
+#     ) -> State:
+#         """
+#         1) Merge the specified 'merge_vars' into one new dimension named 'new_name';
+#         2) Create a new BayesianSurgeryNet from that merged State;
+#         3) Call cut_and_compute(cut_var, trans_var, observ_var) on the new net;
+#         4) Return the resulting conditional probability.
+#         """
+#         # Flatten current net
+#         flattened_state = self.flatten_vars(new_name, merge_vars)
+#         print("Flattened State:\n", flattened_state)
 
-# Now we flatten (A,D) -> "AD", then cut "AD", with "B" as the trans var, "C" as the observ var:
-result = bsn2.cut_multiple_vars(
-    merge_vars=["A","D"],
-    new_name="AD",
-    cut_var="AD",
-    trans_var="B",
-    observ_var="C"
+#         # Gather dimension labels & space atoms
+#         new_vars_list = [at.label for at in flattened_state.sp]
+#         new_spaces_list = list(flattened_state.sp)
+
+#         # Build a new net from the flattened state
+#         new_omega = flattened_state.array.flatten()
+#         merged_net = BayesianSurgeryNet(new_omega, new_vars_list, new_spaces_list)
+
+#         # Perform cut_and_compute
+#         result_state = merged_net.cut_and_compute(cut_var, trans_var, observ_var)
+#         print(f"Result after cut_and_compute({cut_var}, {trans_var}, {observ_var}):\n", result_state)
+
+#         return result_state
+
+from efprob import SpaceAtom
+from typing import List
+
+# 1. We'll define five variables (A,B,C,D,E), each binary [0,1]
+vars5 = ["A","B","C","D","E"]
+spaces5 = [SpaceAtom(v, [0,1]) for v in vars5]
+
+# 2. We need a distribution (omega5) of length 32 that sums to 1.
+#    For simplicity, let's assign each outcome probability = 1/32 = 0.03125
+#    so that the entire distribution sums to 1.
+omega5 = [0.03125]*32  # 32 elements, each 0.03125 => sums to 1.0
+
+# 3. Create a BayesianSurgeryNet instance for these 5 variables.
+bsn5 = BayesianSurgeryNet(omega5, vars5, spaces5)
+
+# 4. We'll demonstrate merging the variables (A,E) into a new dimension "AE".
+#    Then we will do a cut on "AE", using "B" as the trans variable, and "C" as the observed variable.
+#    "D" will simply remain in the leftover space but won't be used as cut/trans/observ in this call.
+result_state = bsn5.cut_multiple_vars(
+    merge_vars=["A","D","E"],  # merge these two binary variables
+    new_name="ADE",         # call the merged dimension "AE"
+    cut_var="ADE",          # we want to cut on the newly merged "AE"
+    trans_var="B",         # "B" acts as the bridging variable
+    observ_var="C"         # "C" is the observation
 )
-print("Final Result:\n", result.array)
+
+print("\nFinal result of cut_multiple_vars (ADE,B,C):")
+print(result_state.array)
+
 
