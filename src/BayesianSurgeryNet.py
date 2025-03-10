@@ -385,44 +385,6 @@ class BayesianSurgeryNet:
 
     
 
-
-# Suppose we have the class BayesianSurgeryNet with the cut_multiple_vars method
-# already defined in your environment. For reference, you can use the version:
-#
-# class BayesianSurgeryNet:
-#     ... (methods) ...
-#     def cut_multiple_vars(
-#         self,
-#         merge_vars: List[str], 
-#         new_name: str,
-#         cut_var: str,
-#         trans_var: str,
-#         observ_var: str
-#     ) -> State:
-#         """
-#         1) Merge the specified 'merge_vars' into one new dimension named 'new_name';
-#         2) Create a new BayesianSurgeryNet from that merged State;
-#         3) Call cut_and_compute(cut_var, trans_var, observ_var) on the new net;
-#         4) Return the resulting conditional probability.
-#         """
-#         # Flatten current net
-#         flattened_state = self.flatten_vars(new_name, merge_vars)
-#         print("Flattened State:\n", flattened_state)
-
-#         # Gather dimension labels & space atoms
-#         new_vars_list = [at.label for at in flattened_state.sp]
-#         new_spaces_list = list(flattened_state.sp)
-
-#         # Build a new net from the flattened state
-#         new_omega = flattened_state.array.flatten()
-#         merged_net = BayesianSurgeryNet(new_omega, new_vars_list, new_spaces_list)
-
-#         # Perform cut_and_compute
-#         result_state = merged_net.cut_and_compute(cut_var, trans_var, observ_var)
-#         print(f"Result after cut_and_compute({cut_var}, {trans_var}, {observ_var}):\n", result_state)
-
-#         return result_state
-
 from efprob import SpaceAtom
 from typing import List
 
