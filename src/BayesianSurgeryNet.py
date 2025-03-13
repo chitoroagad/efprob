@@ -96,19 +96,11 @@ class BayesianSurgeryNet:
         # 4. Comb disintegration
         f, g = self._comb_disint(state, cut_space, cut_mask, trans_space, trans_mask, observ_space, observ_mask)
 
-        # 5. do the cut
-        # TODO: should we really be updating f in here? Or in comb compose or comb_disint?
-        idn_observ = idn(observ_space)
-        uniform_chan = uniform_state(cut_space)
-        discard_chan = discard(cut_space)
-        cut = uniform_chan * discard_chan
-        f = (cut @ idn_observ) * f
-
-        # 6. Comb compose
+        # 5. Comb compose
         composed_state = self._comb_compose(f, g, cut_space, observ_space, trans_space)
 
 
-        # . Get the conditional probability
+        # 6. Get the conditional probability
         return self._get_conditional_probability(composed_state, cut_mask, observ_mask)
 
     # TODO: do we really need all these params?
@@ -179,11 +171,17 @@ class BayesianSurgeryNet:
         idn_observ = idn(observ_space)
         idn_trans = idn(trans_space)
 
+        # Get the cut and swap channels
         swap_chan = swap(cut_space, observ_space)
-
+        uniform_chan = uniform_state(cut_space)
+        discard_chan = discard(cut_space)
+        cut = uniform_chan * discard_chan
 
         # TODO: verify the identities used in this, they are the same, so passes regardless
-        m = (idn_cut @ idn_trans @ (swap_chan * f)) * (idn_cut @ copy2(trans_space)) * (idn_cut @ g) * copy2(cut_space)
+        # TODO: is there a more visual (aesthetic) way to write this?
+        m = (idn_cut @ idn_trans @ (swap_chan * (cut @ idn_observ) * f)) \
+            * (idn_cut @ copy2(trans_space)) \
+            * (idn_cut @ g) * copy2(cut_space)
         return (idn_cut @ idn_trans @ idn_observ @ cap(cut_space)) * (m @ idn_cut) * cup(cut_space)
 
     def _reorder_states(self, new_order: List[str]) -> State:
