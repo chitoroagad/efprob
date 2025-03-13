@@ -177,3 +177,59 @@ def test_cut_and_compute2():
     # Expect
     assert np.allclose(result.array, expected_results)
 
+def test_flatten_vars():
+    # Given
+    omega = [
+        0.1 / 3.6, # A=0, B=0, C=0
+        0.2 / 3.6, # A=0, B=0, C=1
+        0.3 / 3.6, # A=0, B=1, C=0
+        0.4 / 3.6, # A=0, B=1, C=1
+        0.5 / 3.6, # A=1, B=0, C=0
+        0.6 / 3.6, # A=1, B=0, C=1
+        0.7 / 3.6, # A=1, B=1, C=0
+        0.8 / 3.6  # A=1, B=1, C=1
+    ]
+    expected_array = np.array(omega).reshape((4, 2))
+    
+    vars_list = ["A", "B", "C"]
+    spaces = [SpaceAtom(v, [0, 1]) for v in vars_list]
+    bsn = BayesianSurgeryNet(omega, vars_list, spaces)
+
+    # When
+    flattened = bsn.flatten_vars("AB", ["A", "B"])
+    
+    # Then
+    assert flattened.array.shape == (4, 2)  # 4 states for AB, 2 for C
+    assert np.allclose(flattened.array, expected_array)
+
+def test_flatten_vars_three_vars():
+    # Given
+    omega = [0.03125] * 32  # Uniform distribution for 5 binary variables
+    expected_array = np.array([0.03125] * 32).reshape((8, 2, 2))
+
+    vars = ["A", "B", "C", "D", "E"]
+    spaces = [SpaceAtom(v, [0, 1]) for v in vars]
+    bsn = BayesianSurgeryNet(omega, vars, spaces)
+    
+    # Merge A, C, E into ACE
+    flattened = bsn.flatten_vars("ACE", ["A", "C", "E"])
+    
+    # Then
+    assert flattened.array.shape == (8, 2, 2)
+    assert np.allclose(flattened.array, expected_array)
+    
+def test_flatten_all_vars():
+    # Given
+    omega = [0.03125] * 32  # Uniform distribution for 5 binary variables
+    expected_array = np.array([0.03125] * 32).reshape((32, ))
+
+    vars = ["A", "B", "C", "D", "E"]
+    spaces = [SpaceAtom(v, [0, 1]) for v in vars]
+    bsn = BayesianSurgeryNet(omega, vars, spaces)
+
+    # When
+    flattened = bsn.flatten_vars("ABCDE", ["A", "B", "C", "D", "E"])
+
+    # Then
+    assert flattened.array.shape == (32,)
+    assert np.allclose(flattened.array, expected_array)
