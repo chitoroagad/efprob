@@ -50,6 +50,7 @@ class BayesianSurgeryNet:
     def __repr__(self):
         return f"BayesianSurgeryNet({self.omega=}, {self.vars=})"
 
+    # TODO: why are we passing obser_var? Is observ_var not just the remaining variables?
     def cut_and_compute(self, cut_var: str, trans_var: str, observ_var: str) -> State:
         """
         Perform a causal intervention by cutting the influence to cut_var,
@@ -91,12 +92,12 @@ class BayesianSurgeryNet:
         cut_space = Space(self.sp[cut_idx])
         trans_space = Space(self.sp[trans_idx])
         observ_space = Space(self.sp[observ_idx])
-        irrelevant_space = Space(*[SpaceAtom(var, [0, 1]) for var in new_order if var not in [cut_var, trans_var]])
 
         # 4. Comb disintegration
         f, g = self._comb_disint(state, cut_space, cut_mask, trans_space, trans_mask, observ_space, observ_mask)
 
         # 5. do the cut
+        # TODO: should we really be updating f in here? Or in comb compose or comb_disint?
         idn_observ = idn(observ_space)
         uniform_chan = uniform_state(cut_space)
         discard_chan = discard(cut_space)
@@ -110,6 +111,7 @@ class BayesianSurgeryNet:
         # . Get the conditional probability
         return self._get_conditional_probability(composed_state, cut_mask, observ_mask)
 
+    # TODO: do we really need all these params?
     def _comb_disint(
             self,
             state: State,
@@ -161,14 +163,14 @@ class BayesianSurgeryNet:
             g: Channel,
             cut_space: Space,
             observ_space: Space,
-            trans_space: Space
+            trans_space: Space,
         ) -> State:
         """
         Use the comb disintegrated morphisms to compose the 'cut' state
 
         Parameters:
         f   (Channel): The disintegrated state for the cut variable (trans -> cut @ observ)
-        g   (Channel): The conditional probability for the observation variable given the cut variable (cut @ trans -> observ)
+        g   (Channel): The conditional probability for the observation variable given the cut variable (cut -> trans)
 
         Returns:
         The composed state
@@ -180,6 +182,7 @@ class BayesianSurgeryNet:
         swap_chan = swap(cut_space, observ_space)
 
 
+        # TODO: verify the identities used in this, they are the same, so passes regardless
         m = (idn_cut @ idn_trans @ (swap_chan * f)) * (idn_cut @ copy2(trans_space)) * (idn_cut @ g) * copy2(cut_space)
         return (idn_cut @ idn_trans @ idn_observ @ cap(cut_space)) * (m @ idn_cut) * cup(cut_space)
 
@@ -342,6 +345,9 @@ class BayesianSurgeryNet:
         new_state = State(new_array, new_sp)
         return new_state
 
+    # TODO: merge this into cut_and_compute
+    # The interface should be something like cut_and_compute(cut_vars: str | List[str], obser_var: str | List[str])
+    # Users shouldn't have to assign the merged var names, we should handle that
     def cut_multiple_vars(
         self,
         merge_vars: List[str], 

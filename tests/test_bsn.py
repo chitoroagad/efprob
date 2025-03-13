@@ -4,9 +4,10 @@ from efprob import Space, Channel, SpaceAtom, State
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from BayesianSurgeryNet import BayesianSurgeryNet
+# from BayesianSurgeryNet import BayesianSurgeryNet
+from src.BayesianSurgeryNet import BayesianSurgeryNet
 
 # We use the data from the smoking example
 omega1 = [
@@ -34,8 +35,8 @@ omega2 = [
 vars2 = ['S', 'C', 'T']
 
 space1 = Space(*[SpaceAtom(var, [0, 1]) for var in vars1])
-bsn1 = BayesianSurgeryNet(omega1, vars1)
-bsn2 = BayesianSurgeryNet(omega2, vars2)
+bsn1 = BayesianSurgeryNet(omega1, vars1, space1)
+bsn2 = BayesianSurgeryNet(omega2, vars2, space1)
 
 def test_comb_disint():
     # Given
@@ -55,7 +56,15 @@ def test_comb_disint():
 
     # When
     # Disintegrate on S and observe T
-    f, g = bsn1._comb_disint(state, Space(bsn1.sp[0]), [1, 0, 0], Space(bsn1.sp[1]), [0, 0, 1])
+    f, g = bsn1._comb_disint(
+        state,
+        cut_space=Space(bsn1.sp[0]), 
+        cut_mask=[1, 0, 0],
+        trans_space=Space(bsn1.sp[1]),
+        trans_mask=[0, 1, 0],
+        observ_space=Space(bsn1.sp[2]),
+        observ_mask=[0, 0, 1]
+    )
 
     # Then
     assert(g.array.shape == expected_g.shape)
@@ -67,11 +76,12 @@ def test_comb_disint():
 def test_comb_compose():
     # Given
     expected_f = np.array([
-        [[0.525, 0.21],
-        [0.105, 0.42]],
-        [[0.24666667, 0.03363636],
-        [0.12333333, 0.33636364]]
-    ])
+        [[0.38583333, 0.12181818],
+        [0.11416667, 0.37818182]],
+
+       [[0.38583333, 0.12181818],
+        [0.11416667, 0.37818182]]]
+    )
 
     expected_g = np.array([
         [0.95238095, 0.40540541],
@@ -87,11 +97,11 @@ def test_comb_compose():
 
     # When
     composed_state = bsn1._comb_compose(
-        Channel(expected_f, Space(bsn1.sp[1]), Space(bsn1.sp[0], bsn1.sp[1])),
+        Channel(expected_f, Space(bsn1.sp[1]), Space(bsn1.sp[0], bsn1.sp[2])),
         Channel(expected_g, Space(bsn1.sp[0]), Space(bsn1.sp[1])),
-        Space(bsn1.sp[0]),
-        Space(bsn1.sp[1]),
-        Space(bsn1.sp[2]),
+        cut_space=Space(bsn1.sp[0]),
+        trans_space=Space(bsn1.sp[1]),
+        observ_space=Space(bsn1.sp[2]),
     )
 
     # Then
@@ -106,7 +116,7 @@ def test_cut_and_compute():
     ])
 
     # When
-    result = bsn1.cut_and_compute('S', 'C')
+    result = bsn1.cut_and_compute('S', 'T', 'C')
 
     # Then
     assert np.allclose(result.array, expected_results)
@@ -163,7 +173,7 @@ def test_cut_and_compute2():
     ])
 
     # Then
-    result = bsn2.cut_and_compute('S', 'C')
+    result = bsn2.cut_and_compute('S', 'T', 'C')
 
     # Expect
     assert np.allclose(result.array, expected_results)
