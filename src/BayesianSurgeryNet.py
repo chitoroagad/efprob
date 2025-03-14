@@ -19,6 +19,8 @@ from efprob import (
 from efprob.helpers import mask_sum, mask_restrict
 
 class BayesianSurgeryNet:
+    # TODO: do we need to pass the spaces separately?
+    # I get this is useful for passing in the domain for the variables, but it breaks our abstraction?
     def __init__(self, omega: List[float], vars: List[str], spaces: List[SpaceAtom]):
         """
         Parameters:
@@ -64,9 +66,6 @@ class BayesianSurgeryNet:
         Returns:
         State:  The conditional probability after intervention
         """
-        # TODO: Only 1 cut variable for now
-        # TODO: Only 1 observation variable for now
-
         # Ensure the variables are in the domain
         self._validate_vars(cut_var, trans_var, observ_var)
 
@@ -133,7 +132,7 @@ class BayesianSurgeryNet:
 
         # g describes the conditional probability of the observ variable given the cut variable
         P_cut = state.MM(1, 0, 0)
-        print(trans_mask)
+        # print(trans_mask)
         summask = mask_sum(trans_mask, cut_mask)
         g = self._get_conditional_probability(state, cut_mask, trans_mask)
 
@@ -144,9 +143,9 @@ class BayesianSurgeryNet:
         cut_copy = copy2(cut_space)
 
         observ_given_rest = self._get_conditional_probability(state, summask, observ_mask)
-        print(observ_given_rest)
+        # print(observ_given_rest)
         f = (i_cut @ observ_given_rest) * ((cut_copy * P_cut) @ i_trans)
-        print(f)
+        # print(f)
         return f, g
 
     def _comb_compose(
@@ -283,68 +282,37 @@ class BayesianSurgeryNet:
         :return:          A new State whose dimensionality is [new_dim, leftover_dims...].
                           The first dimension corresponds to 'new_name' with size=2^k.
         """
-        # 1 Gather indices of vars to merge
-        var_indices = []
-        for v in var_list:
-            if v not in self.vars:
-                raise ValueError(f"Variable {v} not found in {self.vars}")
-            var_indices.append(self.vars.index(v))
-
-        var_indices.sort()
-
-        k = len(var_indices)
-        if k == 0:
+        self._validate_vars(*var_list)
+    
+        # If only one or no vars to merge, return the original state
+        if len(var_list) < 2:
             return self.state
-
-        # 2 Build a new dimension (SpaceAtom) of size 2^k
-        import itertools
-        combos = list(itertools.product([0,1], repeat=k)) 
-        new_atom = SpaceAtom(new_name, combos)  
-
-        # 3 Find leftover variables and atoms
-        leftover_vars = []
-        leftover_indices = []
-        for i, v in enumerate(self.vars):
-            if v not in var_list:
-                leftover_vars.append(v)
-                leftover_indices.append(i)
-
-        leftover_atoms = [self.sp[i] for i in leftover_indices]
-
-        # 4 The new Space = [new_atom] + leftover_atoms
-        new_sp = Space(new_atom, *leftover_atoms)
-        leftover_shape = tuple(len(a.list) for a in leftover_atoms)
-        new_shape = (2**k,) + leftover_shape
-
-        # 5 Fill the new array by aggregating over old_array
-        import numpy as np
-        new_array = np.zeros(new_shape, dtype=float)
-
-        old_array = self.state.array
-        old_shape = old_array.shape  
-
-        all_indices = list(np.ndindex(old_shape))
-        for idx_tuple in all_indices:
-            prob = old_array[idx_tuple]
-            if prob == 0.0:
-                continue
-            merged_combo = tuple(idx_tuple[i] for i in var_indices)
-            new_dim_index = combos.index(merged_combo)
-
-            # leftover_index_tuple
-            leftover_index_tuple = tuple(idx_tuple[i] for i in leftover_indices)
-
-            # leftover_index_tuple itself might be empty if var_list == self.vars
-            new_array_index = (new_dim_index,) + leftover_index_tuple
-            new_array[new_array_index] += prob
-
-        # 6 create new State
-        from efprob import State
-        new_state = State(new_array, new_sp)
-        return new_state
+            
+        # Get indices of variables to merge and keep
+        merge_indices = [self.vars.index(v) for v in var_list]
+        keep_indices = [i for i in range(len(self.vars)) if i not in merge_indices]
+        
+        # Create permutation for reordering (merged vars first, then kept vars)
+        perm = merge_indices + keep_indices
+        
+        # Create the transpose operation to reorder dimensions
+        reordered = np.transpose(self.state.array, perm)
+        
+        # Reshape to combine the first n dimensions
+        n_merged = len(merge_indices)
+        merged_shape = (2**n_merged,) + tuple(self.state.array.shape[i] for i in keep_indices)
+        reshaped = reordered.reshape(merged_shape)
+        
+        # Create new space objects
+        merged_combos = list(itertools.product([0, 1], repeat=n_merged))
+        merged_atom = SpaceAtom(new_name, merged_combos)
+        keep_atoms = [self.sp[i] for i in keep_indices]
+        new_space = Space(merged_atom, *keep_atoms)
+        
+        return State(reshaped, new_space)
 
     # TODO: merge this into cut_and_compute
-    # The interface should be something like cut_and_compute(cut_vars: str | List[str], obser_var: str | List[str])
+    # The interface should be something liFLATTEN_LIST_SIZEe cut_and_compute(cut_vars: str | List[str], obser_var: str | List[str])
     # Users shouldn't have to assign the merged var names, we should handle that
     def cut_multiple_vars(
         self,
@@ -370,7 +338,7 @@ class BayesianSurgeryNet:
         """
         # 1 Flatten current net to combine merge_vars => new_name
         flattened_state = self.flatten_vars(new_name, merge_vars)
-        print("Flattened State:\n", flattened_state)
+        # print("Flattened State:\n", flattened_state)
 
         # 2 Gather the dimension labels and space atoms from flattened_state
         new_vars_list = [at.label for at in flattened_state.sp]
@@ -382,7 +350,7 @@ class BayesianSurgeryNet:
 
         # 4 Perform the cut_and_compute in the merged net
         result_state = merged_net.cut_and_compute(cut_var, trans_var, observ_var)
-        print(f"Result after cut_and_compute({cut_var}, {trans_var}, {observ_var}):\n", result_state)
+        # print(f"Result after cut_and_compute({cut_var}, {trans_var}, {observ_var}):\n", result_state)
 
         return result_state
 
